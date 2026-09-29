@@ -55,6 +55,32 @@ the board:
 Do not copy PlatformIO or SDK configuration blocks into device YAML files. Use
 the package so board settings remain consistent with the component.
 
+## Partial (non-flashing) refresh
+
+By default every `component.update` performs a full refresh (`epd_clear()` +
+grayscale draw), which flashes the whole panel. For frequently updating
+dashboards you can enable pixel-diff partial refresh:
+
+```yaml
+display:
+  - platform: lilygo_t5_47_plus
+    id: epaper
+    full_update_every: 15   # full clear every 15th refresh (default: 1 = always full)
+```
+
+With `full_update_every` > 1, the component keeps the previous frame and only
+applies ink to pixels that changed (erase pass with `WHITE_ON_WHITE`, draw pass
+with `BLACK_ON_WHITE`), so unchanged screen areas do not flicker at all.
+Partial refreshes slowly accumulate ghosting artifacts; the periodic full
+refresh cleans them up. You can also force a clean full refresh from an
+automation (useful when switching display pages):
+
+```yaml
+on_...:
+  - lambda: id(epaper).force_full_update();
+  - component.update: epaper
+```
+
 ## Local development
 
 Python, PlatformIO and compiler toolchains are kept inside Docker:

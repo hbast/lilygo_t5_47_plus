@@ -26,8 +26,17 @@ class LilygoT5_47PlusDisplay : public display::DisplayBuffer {
 
   display::DisplayType get_display_type() override { return display::DisplayType::DISPLAY_TYPE_GRAYSCALE; }
 
+  void set_full_update_every(uint32_t v) { this->full_update_every_ = v; }
+  void force_full_update() { this->first_draw_ = true; }
+
  protected:
   void draw_absolute_pixel_internal(int x, int y, Color color) override;
+
+  uint8_t *old_buffer_{nullptr};
+  uint8_t *diff_buffer_{nullptr};
+  uint32_t full_update_every_{1};
+  uint32_t partial_count_{0};
+  bool first_draw_{true};
 
   int get_width_internal() override { return 960; }
 
