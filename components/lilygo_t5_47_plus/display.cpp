@@ -32,6 +32,21 @@ void LilygoT5_47PlusDisplay::setup() {
   }
 
   memset(this->buffer_, 0xFF, buffer_size);
+
+  this->old_buffer_ = (uint8_t *) heap_caps_malloc(buffer_size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  if (this->old_buffer_ == nullptr) {
+    ESP_LOGE(TAG, "Could not allocate old display buffer (%u bytes). Is PSRAM enabled?", buffer_size);
+    this->mark_failed();
+    return;
+  }
+  memset(this->old_buffer_, 0xFF, buffer_size);
+
+  this->diff_buffer_ = (uint8_t *) heap_caps_malloc(buffer_size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+  if (this->diff_buffer_ == nullptr) {
+    ESP_LOGE(TAG, "Could not allocate diff display buffer (%u bytes). Is PSRAM enabled?", buffer_size);
+    this->mark_failed();
+    return;
+  }
 }
 
 float LilygoT5_47PlusDisplay::get_setup_priority() const { return setup_priority::PROCESSOR; }
@@ -106,17 +121,42 @@ void LilygoT5_47PlusDisplay::display() {
   epd_poweron();
   uint32_t t1 = esphome::millis();
 
-  epd_clear();
-  uint32_t t2 = esphome::millis();
-
-  epd_draw_grayscale_image(epd_full_screen(), this->buffer_);
-  uint32_t t3 = esphome::millis();
+  bool full = this->first_draw_ ||
+              (this->full_update_every_ > 0 && this->partial_count_ + 1 >= this->full_update_every_);
+  uint32_t t2, t3;
+  if (full) {
+    epd_clear();
+    t2 = esphome::millis();
+    epd_draw_grayscale_image(epd_full_screen(), this->buffer_);
+    t3 = esphome::millis();
+    this->partial_count_ = 0;
+    this->first_draw_ = false;
+  } else {
+    // Pixel-diff partial update: build erase/draw masks holding only CHANGED
+    // pixels (unchanged nibbles forced to white = no ink applied), so
+    // untouched screen areas do not flicker at all.
+    uint32_t len = this->get_buffer_length_();
+    for (uint32_t i = 0; i < len; i++) {
+      uint8_t o = this->old_buffer_[i], n = this->buffer_[i];
+      uint8_t olo = o & 0x0F, ohi = o >> 4, nlo = n & 0x0F, nhi = n >> 4;
+      uint8_t e = (uint8_t)(((olo == nlo) ? 0x0F : olo) | ((ohi == nhi) ? 0xF0 : (ohi << 4)));
+      uint8_t d = (uint8_t)(((olo == nlo) ? 0x0F : nlo) | ((ohi == nhi) ? 0xF0 : (nhi << 4)));
+      this->old_buffer_[i] = e;   // erase mask: old ink only where pixel changed
+      this->diff_buffer_[i] = d;  // draw mask: new ink only where pixel changed
+    }
+    epd_draw_image(epd_full_screen(), this->old_buffer_, WHITE_ON_WHITE);
+    t2 = esphome::millis();
+    epd_draw_image(epd_full_screen(), this->diff_buffer_, BLACK_ON_WHITE);
+    t3 = esphome::millis();
+    this->partial_count_++;
+  }
+  memcpy(this->old_buffer_, this->buffer_, this->get_buffer_length_());
 
   epd_poweroff();
   uint32_t t4 = esphome::millis();
 
-  ESP_LOGD(TAG, "EPD refresh done: poweron=%ums clear=%ums draw=%ums poweroff=%ums total=%ums", t1 - t0, t2 - t1,
-           t3 - t2, t4 - t3, t4 - t0);
+  ESP_LOGD(TAG, "EPD refresh done (%s): poweron=%ums clear/erase=%ums draw=%ums poweroff=%ums total=%ums",
+           full ? "full" : "partial", t1 - t0, t2 - t1, t3 - t2, t4 - t3, t4 - t0);
 }
 
 void LilygoT5_47PlusDisplay::on_safe_shutdown() {

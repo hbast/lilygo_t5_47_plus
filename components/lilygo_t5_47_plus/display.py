@@ -15,6 +15,7 @@ CONFIG_SCHEMA = cv.All(
     display.FULL_DISPLAY_SCHEMA.extend(
         {
             cv.GenerateID(): cv.declare_id(LilygoT5_47PlusDisplay),
+            cv.Optional("full_update_every", default=1): cv.uint32_t,
         }
     ).extend(cv.polling_component_schema("5s")),
     cv.has_at_most_one_key(CONF_PAGES, CONF_LAMBDA),
@@ -27,6 +28,7 @@ async def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
 
     await display.register_display(var, config)
+    cg.add(var.set_full_update_every(config["full_update_every"]))
 
     if CONF_LAMBDA in config:
         lambda_ = await cg.process_lambda(
