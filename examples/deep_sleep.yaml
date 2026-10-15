@@ -1,10 +1,19 @@
 esphome:
   name: lilygo-t5-47-plus-deep-sleep
   friendly_name: LILYGO T5 4.7 Plus Deep Sleep
+  includes:
+    - <driver/rtc_io.h>
   on_boot:
-    priority: -100
-    then:
-      - component.update: epaper
+    - priority: -100
+      then:
+        - component.update: epaper
+    - priority: 600
+      then:
+        - lambda: |-
+            rtc_gpio_init(GPIO_NUM_21);
+            rtc_gpio_set_direction(GPIO_NUM_21, RTC_GPIO_MODE_INPUT_ONLY);
+            rtc_gpio_pullup_en(GPIO_NUM_21);
+            rtc_gpio_pulldown_dis(GPIO_NUM_21);
 
 packages:
   lilygo_t5_47_plus: github://hbast/lilygo_t5_47_plus/packages/lilygo_t5_47_plus.yaml@v1.0.0
@@ -25,7 +34,7 @@ deep_sleep:
   id: deep_sleep_control
   run_duration: 30s
   sleep_duration: 5min
-  wakeup_pin:
-    number: GPIO21
-    inverted: true
-  wakeup_pin_mode: INVERT_WAKEUP
+  esp32_ext1_wakeup:
+    pins:
+      - GPIO21
+    mode: ANY_LOW
