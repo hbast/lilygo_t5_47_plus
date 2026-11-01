@@ -90,7 +90,7 @@ Acceptance:
 
 ## Phase 5: Docker-only verification
 
-Status: complete for V2.4, except battery voltage with a connected LiPo.
+Status: complete for V2.4.
 
 1. Validate the local minimal, full-coverage and deep-sleep test configurations
    with `esphome config` in Docker.
@@ -113,8 +113,10 @@ Hardware results (V2.4):
 - white paper background and black logical pixels confirmed;
 - all 16 grayscale levels rendered;
 - touch markers appeared at the correct transformed coordinates;
-- no-battery state reported 0%; a connected LiPo was not available for voltage
-  validation;
+- no-battery state reported 0%; a connected 600 mAh LiPo read 4.20 V / 100%
+  (see README's troubleshooting note — a reversed-polarity JST-PH connection
+  reads identically to no battery at all, which cost real debugging time
+  before the actual cause was found);
 - timed deep sleep retained the E-Paper image and woke for the next refresh.
 
 ## Phase 6: Public cleanup and release

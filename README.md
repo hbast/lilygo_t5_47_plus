@@ -73,11 +73,31 @@ See [`DEVELOPMENT.md`](DEVELOPMENT.md) for the full workflow.
 
 - V2.4 is hardware-tested with display, correct black/white polarity, all 16
   grayscale levels, transformed touch coordinates and timed deep sleep. The
-  battery sensor reports 0% correctly without a battery; measurement with a
-  connected LiPo remains to be verified.
+  battery sensor reports 0% correctly without a battery, and measurement with
+  a connected LiPo is now confirmed working (4.20 V / 100% on a fully charged
+  600 mAh cell).
 - V2.3 uses the same ESP32-S3 display pinout. Boards without the optional touch
   panel can omit the `touchscreen` section.
 - The original ESP32-based T5 4.7 board is not supported by this component.
+
+### Troubleshooting: battery reads 0% with a LiPo connected
+
+The 2-pin JST-PH battery connector isn't keyed against reversed polarity, so
+it's easy to seat a pre-wired LiPo with red/black swapped relative to the
+board's `BAT-`/`BAT+` silkscreen. This produces the *exact same* symptom as
+having no battery connected at all (`analogReadMilliVolts(BATT_PIN)` reads a
+flat 0 mV) — reverse-polarity protection on the charge path silently blocks
+the connection rather than passing a negative reading through, so there's no
+obvious signal pointing at polarity specifically.
+
+Before suspecting the ADC/firmware, check the connector against the
+silkscreen: unplug it, confirm which wire color is actually positive on your
+battery (don't assume red = +; some pre-wired packs get this wrong), and
+compare against which pin is labeled `BAT+`. If they're swapped, you can
+de-pin and swap the two crimp terminals in the JST-PH housing — gently press
+the retention barb through the small release slot on the housing face with a
+precision flathead while pulling the wire from the back — rather than
+re-terminating the wires.
 
 ## Credits and license
 
